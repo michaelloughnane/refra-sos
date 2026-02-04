@@ -1,16 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat'; // Import the heatmap library
 import './App.css';
 
-// --- 1. HELPERS & CONFIG ---
+// --- 1. CONFIGURATION ---
 
 const getMagColor = (mag) => {
-  if (mag >= 5) return '#dc2626'; // Red (Critical)
-  if (mag >= 3) return '#ea580c'; // Orange (Severe)
-  if (mag >= 1) return '#ca8a04'; // Yellow (Moderate)
-  return '#2563eb';               // Blue (Minor)
+  if (mag >= 5) return '#dc2626'; // Red
+  if (mag >= 3) return '#ea580c'; // Orange
+  if (mag >= 1) return '#ca8a04'; // Yellow
+  return '#2563eb';               // Blue
 };
 
 const createCustomIcon = (mag) => {
@@ -18,58 +19,88 @@ const createCustomIcon = (mag) => {
     className: 'custom-marker',
     html: `<div style="
       background-color: ${getMagColor(mag)};
-      width: 14px; height: 14px;
+      width: 10px; height: 10px;
       border-radius: 50%;
-      border: 2px solid white;
+      border: 1px solid white;
       box-shadow: 0 0 4px rgba(0,0,0,0.5);
     "></div>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
-    popupAnchor: [0, -10]
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+    popupAnchor: [0, -6]
   });
 };
 
-// --- 2. GENERATE IRREGULAR "IMPACT ZONES" ---
-// This function creates a jagged polygon around a center point to mimic real damage zones.
-// It avoids the "perfect circle" look.
+// --- 2. NEW COMPONENT: HEATMAP LAYER ---
+// This component reads the disaster data and draws a heat layer on the map
+const HeatmapLayer = ({ data }) => {
+  const map = useMap();
+  const heatLayerRef = useRef(null);
+
+  useEffect(() => {
+    if (!map || !data || data.length === 0) return;
+
+    // Convert GeoJSON features to Heatmap points: [lat, lon, intensity]
+    // Intensity is scaled based on Magnitude (mag 5 is "hotter" than mag 2)
+    const points = data.map(feature => {
+      const [lon, lat] = feature.geometry.coordinates;
+      const mag = feature.properties.mag;
+      return [lat, lon, mag * 2]; // Scaled intensity
+    });
+
+    // If layer exists, remove it (cleanup)
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+    }
+
+    // Create new Heat layer
+    // radius: how "spread out" the heat is
+    // blur: how smooth the gradient is
+    heatLayerRef.current = L.heatLayer(points, {
+      radius: 25,
+      blur: 15,
+      maxZoom: 10,
+      gradient: { 0.4: 'blue', 0.6: 'lime', 0.8: 'orange', 1.0: 'red' }
+    }).addTo(map);
+
+    // Cleanup on unmount
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+      }
+    };
+  }, [map, data]);
+
+  return null;
+};
+
+// --- 3. GENERATE IRREGULAR "IMPACT ZONES" ---
 const generateImpactPolygon = (lat, lon, mag) => {
   const points = [];
-  const numPoints = 12; // How many corners the shape has
-  // Mag 5 = ~0.3 degrees radius (approx 30km), Mag 2 = ~0.05 degrees
+  const numPoints = 12; 
+  // Mag 5 = bigger polygon, Mag 2 = smaller
   const baseRadius = mag * 0.04; 
   
   for (let i = 0; i < numPoints; i++) {
-    // Calculate angle for this point
     const angle = (i / numPoints) * (2 * Math.PI);
-    
-    // Add "Randomness" to the radius to make it jagged/irregular
-    // varies between 70% and 130% of the base radius
     const variance = 0.7 + Math.random() * 0.6; 
     const r = baseRadius * variance;
-    
-    // Convert polar coordinates to Lat/Lon offsets
     const deltaLat = r * Math.cos(angle);
     const deltaLon = r * Math.sin(angle);
-    
     points.push([lat + deltaLat, lon + deltaLon]);
   }
   return points;
 };
 
-// --- 3. HARDCODED TWEET GENERATOR (unchanged) ---
+// --- 4. MOCK TWEET GENERATOR ---
 const generateMockTweets = (placeName, magnitude) => {
-  const hashtags = ["#Earthquake", "#Emergency", "#SOS", "#Safety"];
-  const randomTag = hashtags[Math.floor(Math.random() * hashtags.length)];
-  
   return [
-    { user: "@LocalNewsAlerts", text: `BREAKING: Magnitude ${magnitude} earthquake detected near ${placeName}. Residents advised to stay outdoors.`, time: "2m ago", isOfficial: true },
-    { user: "@CitizenJoe", text: `Whoa! Just felt huge shaking in ${placeName.split(',')[0]}! Everyone okay? ${randomTag}`, time: "5m ago", isOfficial: false },
-    { user: "@SafeCity", text: `Reports of structural vibrations in the ${placeName} sector. Avoid glass buildings.`, time: "10m ago", isOfficial: false },
-    { user: "@GeoMonitor", text: `Seismic activity confirms mag ${magnitude} event. Aftershocks possible.`, time: "12m ago", isOfficial: true }
+    { user: "@LocalNewsAlerts", text: `BREAKING: Magnitude ${magnitude} detected near ${placeName}.`, time: "2m ago", isOfficial: true },
+    { user: "@CitizenJoe", text: `Felt that shaking in ${placeName.split(',')[0]}! #Earthquake`, time: "5m ago", isOfficial: false },
+    { user: "@GeoMonitor", text: `Seismic alert: Avoid damaged infrastructure in ${placeName}.`, time: "12m ago", isOfficial: true }
   ];
 };
 
-// --- 4. MAP CONTROLLER ---
+// --- 5. FLY TO LOCATION HELPER ---
 function FlyToLocation({ target }) {
   const map = useMap();
   if (target) {
@@ -79,7 +110,7 @@ function FlyToLocation({ target }) {
   return null;
 }
 
-// --- 5. MAIN APP ---
+// --- 6. MAIN APP ---
 function App() {
   const [disasters, setDisasters] = useState([]);
   const [selectedDisaster, setSelectedDisaster] = useState(null);
@@ -91,15 +122,12 @@ function App() {
         const response = await fetch('https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_day.geojson');
         const data = await response.json();
         
-        // Filter and Process Data
         const processedData = data.features
           .filter(f => f.properties.mag > 1.0)
           .map(f => {
-             // We generate the "Shape" once when data loads, so it doesn't flicker
              const [lon, lat] = f.geometry.coordinates;
              return {
                ...f,
-               // Store the calculated polygon in the object
                impactZone: generateImpactPolygon(lat, lon, f.properties.mag)
              };
           });
@@ -125,10 +153,11 @@ function App() {
       </header>
 
       <div className="dashboard-container">
+        
         {/* SIDE PANE */}
         <div className="side-pane">
           {loading ? (
-            <div style={{padding: 20}}>Loading USGS Data...</div>
+            <div style={{padding: 20}}>Loading Data...</div>
           ) : !selectedDisaster ? (
             <>
               <h2>Live Incidents ({disasters.length})</h2>
@@ -151,7 +180,7 @@ function App() {
                 <h2>{selectedDisaster.properties.place}</h2>
               </div>
               <div className="tweet-feed">
-                <div className="feed-label">Live Social Updates</div>
+                <div className="feed-label">Live Updates</div>
                 {generateMockTweets(selectedDisaster.properties.place, selectedDisaster.properties.mag).map((tweet, idx) => (
                   <div key={idx} className="tweet-card">
                     <div className="tweet-header">
@@ -169,8 +198,14 @@ function App() {
         {/* MAP PANE */}
         <div className="map-wrapper">
           <MapContainer center={[37.09, -95.71]} zoom={4} style={{ height: "100%", width: "100%" }}>
+            
+            {/* 1. BASE MAP */}
             <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             
+            {/* 2. HEATMAP LAYER (Renders beneath markers/polygons) */}
+            <HeatmapLayer data={disasters} />
+
+            {/* 3. INTERACTIVE LAYERS (Polygons & Markers) */}
             <FlyToLocation target={selectedDisaster} />
 
             {disasters.map((feature) => {
@@ -181,22 +216,23 @@ function App() {
 
               return (
                 <React.Fragment key={feature.id}>
-                  {/* DYNAMIC IRREGULAR POLYGON */}
+                  
+                  {/* BORDER (POLYGON) - Rendered ON TOP of Heatmap */}
                   {isSelected && (
                     <Polygon 
                       positions={feature.impactZone}
                       pathOptions={{ 
                         color: color, 
+                        weight: 3,           // Thicker border
                         fillColor: color, 
-                        fillOpacity: 0.4,
-                        weight: 2,
-                        dashArray: '5, 10' 
+                        fillOpacity: 0.1,    // Very transparent fill so Heatmap shows through
+                        dashArray: '8, 8'    // Dashed "Danger" look
                       }}
                     >
                       <Popup>
                         <div style={{textAlign: 'center', color: '#b91c1c'}}>
-                           <strong>⚠️ IMPACT ZONE</strong><br/>
-                           Avoid this area
+                           <strong>⚠️ EXCLUSION ZONE</strong><br/>
+                           Authorized Personnel Only
                         </div>
                       </Popup>
                     </Polygon>
