@@ -1,0 +1,176 @@
+/* GLOBAL LAYOUT */
+html, body, #root, .App {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+}
+
+/* HEADER */
+.app-header {
+  background-color: #0f172a; /* Darker Navy */
+  color: white;
+  padding: 0 20px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+  z-index: 1001;
+}
+
+.dashboard-container {
+  display: flex;
+  flex: 1;
+  height: calc(100vh - 60px);
+}
+
+/* SIDE PANE */
+.side-pane {
+  width: 350px;
+  background-color: #f8fafc;
+  border-right: 1px solid #cbd5e1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-shadow: 4px 0 6px rgba(0,0,0,0.05);
+  z-index: 1000;
+}
+
+.side-pane h2 {
+  padding: 20px;
+  margin: 0;
+  font-size: 1.1rem;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  position: sticky;
+  top: 0;
+}
+
+/* LIST ITEM (DISASTER) */
+.list-item {
+  padding: 15px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.list-item:hover {
+  background-color: #eff6ff;
+  padding-left: 25px; /* Subtle slide effect */
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.item-info h3 {
+  margin: 0 0 5px 0;
+  font-size: 0.9rem;
+  color: #1e293b;
+}
+
+.badge {
+  font-size: 0.7rem;
+  background-color: #e2e8f0;
+  padding: 2px 8px;
+  border-radius: 12px;
+  color: #475569;
+  font-weight: bold;
+}
+
+/* TWEET FEED STYLES */
+.pane-header {
+  display: flex;
+  align-items: center;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding-right: 10px;
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 20px;
+  font-size: 0.9rem;
+}
+
+.back-btn:hover {
+  text-decoration: underline;
+}
+
+.feed-label {
+  padding: 10px 20px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  background: #f1f5f9;
+}
+
+.tweet-card {
+  background: white;
+  margin: 15px 20px;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+  transition: transform 0.2s;
+}
+
+.tweet-card:hover {
+  border-color: #cbd5e1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.tweet-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 0.85rem;
+}
+
+.username {
+  font-weight: bold;
+  color: #0f172a;
+}
+
+.username.official {
+  color: #2563eb; /* Blue checkmark color */
+}
+
+.username.official::after {
+  content: " ✓";
+  font-size: 0.8rem;
+}
+
+.timestamp {
+  color: #94a3b8;
+}
+
+.tweet-body {
+  font-size: 0.9rem;
+  color: #334155;
+  line-height: 1.4;
+}
+
+/* MAP */
+.map-wrapper {
+  flex-grow: 1;
+}
